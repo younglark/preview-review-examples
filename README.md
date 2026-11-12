@@ -12,4 +12,4 @@
 
 下载可套用的预览包：[preview-review-examples.zip](https://github.com/younglark/preview-review-examples/raw/main/zips/preview-review-examples.zip)
 
-验收场景嵌的是真实构建后的页面（`app/` 下的 login/main），通过 `?review=` 参数开启验收模式——不用为审批单独重写一套交互。约定见 skill「交互预览验收包」。反馈 UI 由页面自己渲染；若已安装 grokbot-x，会走 `window.__grokbotXPreview.submitFeedback({ json, files })`，否则降级为复制 JSON。
+验收场景嵌的是真实构建后的页面（`app/` 下的 login/main），通过 `?review=` 参数开启验收模式——不用为审批单独重写一套交互。 验收壳的顶栏和右侧验收区可收起，把空间让给预览。约定见 skill「交互预览验收包」。反馈 UI 由页面自己渲染；若已安装 grokbot-x，会走 `window.__grokbotXPreview.submitFeedback({ json, files })`，否则降级为复制 JSON。
