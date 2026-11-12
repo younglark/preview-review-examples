@@ -1,46 +1,36 @@
 <!doctype html>
 <html lang="zh-CN">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>交互预览验收 · 示例</title>
-<style>
-:root{--bg:#f3efe6;--ink:#1c1917;--muted:#7a7268;--line:#e6dfd3;--paper:#fffdf8;--accent:#0f766e;--font:"PingFang SC","Hiragino Sans GB","Noto Sans SC",ui-sans-serif,system-ui,sans-serif}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--font)}
-main{max-width:920px;margin:0 auto;padding:48px 24px 80px}
-h1{font-size:28px;letter-spacing:-.03em;margin:0 0 8px}
-.lead{color:var(--muted);margin:0 0 32px;max-width:640px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
-a.card{display:block;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:20px;text-decoration:none;color:inherit;box-shadow:0 10px 30px rgba(28,25,23,.06)}
-a.card:hover{border-color:#c5ddd8}
-.kicker{font-size:12px;color:var(--accent);font-weight:650}
-a.card h2{margin:6px 0 8px;font-size:18px}
-a.card p{margin:0;color:var(--muted);font-size:14px}
-.note{margin-top:36px;font-size:13px;color:var(--muted)}
-</style>
-<main>
-  <h1>交互预览验收 · 示例</h1>
-  <p class="lead">三个附件内自渲染反馈 UI 的例子。当前是普通网页预览，点「复制反馈」会把 JSON 写进剪贴板（未接入 grokbot-x 时的降级行为）。</p>
-  <div class="grid">
-    <a class="card" href="general/index.html">
-      <div class="kicker">general</div>
-      <h2>通用结论</h2>
-      <p>体验一份新首页首屏，用「通过 / 需修改 / 不通过」+ 备注 + 附件提交。</p>
-    </a>
-    <a class="card" href="visual/index.html">
-      <div class="kicker">visual</div>
-      <h2>图上打点标注</h2>
-      <p>在咖啡 App 视觉稿上点击打点，为每个位置写意见。</p>
-    </a>
-    <a class="card" href="animation/index.html">
-      <div class="kicker">animation</div>
-      <h2>动画时间轴评论</h2>
-      <p>慢放或拖动登录按钮入场动画，在某一帧上留言。</p>
-    </a>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>晨光咖啡 App 改版验收</title>
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <p class="eyebrow">预制验收模板</p>
+        <h1>晨光咖啡 App 改版验收</h1>
+      </div>
+      <p class="fill-meta" id="fillMeta">已填 0 / 5 个场景</p>
+    </header>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="验收场景"></nav>
+    <div class="main">
+      <section class="stage" id="stage" aria-live="polite"></section>
+      <aside class="panel" id="panel"></aside>
+    </div>
+    <footer class="dock">
+      <label class="attach">
+        <span class="attach-label">附件</span>
+        <input id="files" type="file" accept="image/*,video/*,*/*" multiple>
+        <span class="attach-btn">选择文件</span>
+        <span id="fileHint">可附截图、录屏或其他文件</span>
+      </label>
+      <button class="primary" id="copyAll" type="button">复制全部反馈</button>
+    </footer>
   </div>
-  <p class="note">这些页面也是 skill 约定的预览包形态：各目录含 index.html 与 review.json，可直接打成 zip 当附件发出。也可下载：
-    <a href="zips/general.zip">general.zip</a> ·
-    <a href="zips/visual.zip">visual.zip</a> ·
-    <a href="zips/animation.zip">animation.zip</a>。
-  </p>
-</main>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="assets/app.js"></script>
+</body>
+</html>
