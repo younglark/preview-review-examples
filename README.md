@@ -7,7 +7,7 @@
 - [视觉稿](https://younglark.github.io/preview-review-examples/#visual)：在稿上打点标注
 - [入场动画](https://younglark.github.io/preview-review-examples/#animation)：可拖动的进度条、倍速、在某一刻评论
 - [交互走查](https://younglark.github.io/preview-review-examples/#prototype)：可点击的多屏原型 + 走查清单
-- [响应式](https://younglark.github.io/preview-review-examples/#responsive)：375 / 768 / 1280 断点切换，逐个给结论
+- [响应式](https://younglark.github.io/preview-review-examples/#responsive)：375 / 768 / 1280 断点切换，逻辑分区可折叠，逐个给结论
 - [总评](https://younglark.github.io/preview-review-examples/#general)：跨场景的整体判断
 
 下载可套用的预览包：[preview-review-examples.zip](https://github.com/younglark/preview-review-examples/raw/main/zips/preview-review-examples.zip)

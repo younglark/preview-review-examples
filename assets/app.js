@@ -32,7 +32,9 @@
         { name: "375", label: "手机 375", verdict: null, note: "" },
         { name: "768", label: "平板 768", verdict: null, note: "" },
         { name: "1280", label: "桌面 1280", verdict: null, note: "" }
-      ]
+      ],
+      collapsed: { "375": {}, "768": {}, "1280": {} },
+      panelFold: { verdict: false, "375": false, "768": true, "1280": true, note: true }
     },
     general: { verdict: null, note: "" },
     files: []
@@ -600,37 +602,131 @@
     });
   }
 
-  /* ---------- responsive ---------- */
-  function renderResponsiveStage() {
-    const cur = state.responsive.current;
+
+  function regionOpen(bp, id) {
+    return !state.responsive.collapsed[bp]?.[id];
+  }
+  function toggleRegion(bp, id) {
+    const map = state.responsive.collapsed[bp] || (state.responsive.collapsed[bp] = {});
+    map[id] = !map[id];
+    renderResponsiveStage();
+  }
+  function regionIds(bp) {
+    return bp === "1280"
+      ? [["side", "侧栏"], ["hero", "主视觉"], ["grid", "商品栅格"]]
+      : [["nav", "顶栏"], ["chips", "分类"], ["hero", "精选"], ["list", "饮品列表"], ["tabbar", "底栏"]];
+  }
+  function setAllRegions(bp, collapsed) {
+    state.responsive.collapsed[bp] = Object.fromEntries(regionIds(bp).map(([id]) => [id, collapsed]));
+    renderResponsiveStage();
+  }
+  function focusBreakpoint(name) {
+    const s = state.responsive;
+    s.current = name;
+    s.breakpoints.forEach((b) => { s.panelFold[b.name] = b.name !== name; });
+    s.panelFold[name] = false;
+    renderResponsiveStage();
+    renderResponsivePanel();
+  }
+  function regionWrap(bp, id, title, inner, extraClass) {
+    const open = regionOpen(bp, id);
+    return `<section class="region${open ? "" : " is-collapsed"}${extraClass ? " " + extraClass : ""}" data-region="${id}">
+      <button type="button" class="region-bar" data-toggle-region="${id}" aria-expanded="${String(open)}">
+        <i class="chev" aria-hidden="true"></i>${title}
+      </button>
+      <div class="region-body">${inner}</div>
+    </section>`;
+  }
+  function bindRegionToggles(bp) {
+    const host = $("regionToggles");
+    if (host) {
+      regionIds(bp).forEach(([id, label]) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "region-chip";
+        b.textContent = label;
+        b.setAttribute("aria-pressed", String(regionOpen(bp, id)));
+        b.addEventListener("click", () => toggleRegion(bp, id));
+        host.appendChild(b);
+      });
+    }
+    stageEl.querySelectorAll("[data-toggle-region]").forEach((btn) => {
+      btn.addEventListener("click", () => toggleRegion(bp, btn.dataset.toggleRegion));
+    });
+    const openAll = stageEl.querySelector("[data-regions='open']");
+    const closeAll = stageEl.querySelector("[data-regions='close']");
+    if (openAll) openAll.addEventListener("click", () => setAllRegions(bp, false));
+    if (closeAll) closeAll.addEventListener("click", () => setAllRegions(bp, true));
+  }
+  function regionToolbar() {
+    return `<div class="stage-tools">
+      <div class="bp-switch" id="bpSwitch"></div>
+      <div class="region-actions">
+        <div class="region-toggles" id="regionToggles"></div>
+        <span class="sep">·</span>
+        <button type="button" class="text-btn" data-regions="open">全部展开</button>
+        <span class="sep">·</span>
+        <button type="button" class="text-btn" data-regions="close">全部收起</button>
+      </div>
+    </div>`;
+  }
+  function responsiveHomeHTML(bp) {
+    const list = DRINKS.filter((d) => !d.featured).map((d) => `
+      <div class="row">
+        <div class="thumb ${d.thumb}"></div>
+        <div class="meta"><b>${d.name}</b><span>${d.desc}</span></div>
+        <div class="price">${d.price}</div>
+      </div>`).join("");
+    return `
+      ${regionWrap(bp, "nav", "顶栏", `
+        <div class="status"><span>9:41</span><span>晨光咖啡</span></div>
+        <div class="nav"><h3>发现</h3><span class="loc">上海 · 静安</span></div>`)}
+      ${regionWrap(bp, "chips", "分类", `
+        <div class="chips">
+          <button class="chip on" type="button">精选</button>
+          <button class="chip" type="button">拿铁</button>
+          <button class="chip" type="button">手冲</button>
+          <button class="chip" type="button">甜品</button>
+        </div>`)}
+      ${regionWrap(bp, "hero", "精选", `
+        <div class="hero"><small>今日精选</small><h4>燕麦 Dirty</h4><small>埃塞俄比亚日晒豆 · 16 元</small></div>`)}
+      ${regionWrap(bp, "list", "饮品列表", `<div class="rows">${list}</div>`, "grow")}
+      ${regionWrap(bp, "tabbar", "底栏", `<div class="tabbar"><span class="on">发现</span><span>菜单</span><span>门店</span><span>我的</span></div>`, "region-dock")}
+    `;
+  }
+  function responsiveDesktopHTML() {
+    const bp = "1280";
     const drinkCards = DRINKS.filter((d) => !d.featured).map((d) =>
       `<div class="web-card"><b>${d.name}</b><div class="empty">${d.desc} · ¥${d.price}</div></div>`
     ).join("");
+    return `<div class="web">
+      ${regionWrap(bp, "side", "侧栏", `<div class="web-side"><h3>晨光咖啡</h3><div class="empty">发现<br>菜单<br>门店<br>我的</div></div>`, "region-side")}
+      <div class="web-main">
+        ${regionWrap(bp, "hero", "主视觉", `<div class="web-hero"><small>今日精选</small><h4 style="margin:6px 0 0;font-family:var(--serif);font-size:32px">燕麦 Dirty</h4></div>`)}
+        ${regionWrap(bp, "grid", "商品栅格", `<div class="web-grid">${drinkCards}</div>`, "grow")}
+      </div>
+    </div>`;
+  }
+
+  /* ---------- responsive ---------- */
+  function renderResponsiveStage() {
+    const cur = state.responsive.current;
+    const hint = `<p class="hint">用上方分区开关折叠某一块，方便对照它在不同尺寸下的表现，再给出结论。</p>`;
     if (cur === "1280") {
       stageEl.innerHTML = `
-        <div class="stage-tools"><div class="bp-switch" id="bpSwitch"></div></div>
-        <div class="device desktop"><div class="screen">
-          <div class="web">
-            <aside class="web-side"><h3>晨光咖啡</h3><div class="empty">发现<br>菜单<br>门店<br>我的</div></aside>
-            <div class="web-main">
-              <div class="web-hero"><small>今日精选</small><h4 style="margin:6px 0 0;font-family:var(--serif);font-size:32px">燕麦 Dirty</h4></div>
-              <div class="web-grid">${drinkCards}</div>
-            </div>
-          </div>
-        </div></div>
-        <p class="hint">切换断点查看布局变化，并为每个尺寸给出结论。</p>`;
+        ${regionToolbar()}
+        <div class="device desktop"><div class="screen regions">${responsiveDesktopHTML()}</div></div>
+        ${hint}`;
     } else if (cur === "768") {
       stageEl.innerHTML = `
-        <div class="stage-tools"><div class="bp-switch" id="bpSwitch"></div></div>
-        <div class="device tablet"><div class="screen">${homeHTML()}</div></div>
-        <p class="hint">切换断点查看布局变化，并为每个尺寸给出结论。</p>`;
-      const screen = stageEl.querySelector(".screen");
-      screen.style.height = "560px";
+        ${regionToolbar()}
+        <div class="device tablet"><div class="screen regions">${responsiveHomeHTML(cur)}</div></div>
+        ${hint}`;
     } else {
       stageEl.innerHTML = `
-        <div class="stage-tools"><div class="bp-switch" id="bpSwitch"></div></div>
-        <div class="device phone"><div class="screen">${homeHTML()}</div></div>
-        <p class="hint">切换断点查看布局变化，并为每个尺寸给出结论。</p>`;
+        ${regionToolbar()}
+        <div class="device phone"><div class="screen regions">${responsiveHomeHTML(cur)}</div></div>
+        ${hint}`;
     }
     const sw = $("bpSwitch");
     state.responsive.breakpoints.forEach((bp) => {
@@ -640,37 +736,82 @@
       b.textContent = bp.label;
       b.setAttribute("aria-pressed", String(bp.name === cur));
       if (bp.name === cur) { b.style.background = "var(--ink)"; b.style.color = "#fff"; b.style.borderColor = "var(--ink)"; }
-      b.addEventListener("click", () => {
-        state.responsive.current = bp.name;
-        renderResponsiveStage();
-        renderResponsivePanel();
-      });
+      b.addEventListener("click", () => focusBreakpoint(bp.name));
       sw.appendChild(b);
     });
+    bindRegionToggles(cur);
   }
 
+  function foldOpen(key) {
+    return !state.responsive.panelFold[key];
+  }
+  function appendFold(parent, key, title, meta, buildBody) {
+    const open = foldOpen(key);
+    const sec = document.createElement("section");
+    sec.className = "fold" + (open ? " is-open" : "");
+    const bar = document.createElement("button");
+    bar.type = "button";
+    bar.className = "fold-bar";
+    bar.setAttribute("aria-expanded", String(open));
+    bar.innerHTML = `<i class="chev" aria-hidden="true"></i><span>${title}</span>${meta ? `<em class="fold-meta">${meta}</em>` : ""}`;
+    bar.addEventListener("click", () => {
+      state.responsive.panelFold[key] = !state.responsive.panelFold[key];
+      renderResponsivePanel();
+    });
+    const body = document.createElement("div");
+    body.className = "fold-body";
+    sec.appendChild(bar);
+    sec.appendChild(body);
+    parent.appendChild(sec);
+    if (buildBody) buildBody(body);
+    return body;
+  }
   function renderResponsivePanel() {
     const s = state.responsive;
     panelEl.dataset.scene = "responsive";
-    panelEl.innerHTML = `<h2>响应式反馈</h2>
-      <div class="field"><label>总结论</label><div class="choices" id="verdict"></div></div>
-      <div class="field bp-rows"><label>各断点</label><div class="list" id="bps"></div></div>`;
-    panelEl.appendChild(noteField(s));
-    bindVerdict($("verdict"), s, "verdict");
-    const list = $("bps");
+    panelEl.innerHTML = `<h2>响应式反馈</h2>`;
+    appendFold(panelEl, "verdict", "总结论", s.verdict || "", (body) => {
+      const box = document.createElement("div");
+      box.className = "choices";
+      box.id = "verdict";
+      body.appendChild(box);
+      bindVerdict(box, s, "verdict", () => renderResponsivePanel());
+    });
     s.breakpoints.forEach((bp, i) => {
-      const item = document.createElement("div");
-      item.className = "item";
-      item.innerHTML = `<header><span>${bp.label}</span><button class="icon" type="button" data-show="${bp.name}">查看</button></header>
-        <div class="choices" data-bp="${i}"></div>
-        <input type="text" placeholder="这个尺寸下的问题" value="${escapeAttr(bp.note || "")}">`;
-      list.appendChild(item);
-      bindVerdict(item.querySelector(".choices"), bp, "verdict", () => renderTabs());
-      item.querySelector("input").addEventListener("input", (e) => { bp.note = e.target.value; });
-      item.querySelector("[data-show]").addEventListener("click", () => {
-        s.current = bp.name;
-        renderResponsiveStage();
+      const meta = [bp.verdict, bp.name === s.current ? "当前" : ""].filter(Boolean).join(" · ");
+      appendFold(panelEl, bp.name, bp.label, meta, (body) => {
+        if (bp.name !== s.current) {
+          const tools = document.createElement("div");
+          tools.className = "fold-tools";
+          const show = document.createElement("button");
+          show.type = "button";
+          show.className = "text-btn";
+          show.textContent = "在预览中查看";
+          show.addEventListener("click", () => focusBreakpoint(bp.name));
+          tools.appendChild(show);
+          body.appendChild(tools);
+        }
+        const choices = document.createElement("div");
+        choices.className = "choices";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = "这个尺寸下的问题";
+        input.value = bp.note || "";
+        input.addEventListener("input", (e) => { bp.note = e.target.value; });
+        body.appendChild(choices);
+        body.appendChild(input);
+        bindVerdict(choices, bp, "verdict", () => {
+          renderTabs();
+          renderResponsivePanel();
+        });
       });
+    });
+    appendFold(panelEl, "note", "备注", s.note ? "已填" : "", (body) => {
+      const ta = document.createElement("textarea");
+      ta.placeholder = "这一幕里需要改的地方";
+      ta.value = s.note || "";
+      ta.addEventListener("input", () => { s.note = ta.value; });
+      body.appendChild(ta);
     });
   }
 
@@ -797,8 +938,24 @@
     });
   }
 
+
+  function applyPreviewParams() {
+    const q = new URLSearchParams(location.search);
+    const bp = q.get("bp");
+    if (bp && state.responsive.breakpoints.some((b) => b.name === bp)) {
+      state.responsive.current = bp;
+      state.responsive.breakpoints.forEach((b) => { state.responsive.panelFold[b.name] = b.name !== bp; });
+    }
+    const fold = q.get("fold");
+    if (!fold) return;
+    const cur = state.responsive.current;
+    const all = regionIds(cur).map(([id]) => id);
+    const ids = fold === "all" ? all : fold.split(",").map((s) => s.trim()).filter((id) => all.includes(id));
+    state.responsive.collapsed[cur] = Object.fromEntries(ids.map((id) => [id, true]));
+  }
   function init() {
     bindGlobal();
+    applyPreviewParams();
     const id = location.hash.slice(1);
     selectTab(TABS.some((t) => t.id === id) ? id : "visual");
     if (new URLSearchParams(location.search).get("test") === "scrub") {
