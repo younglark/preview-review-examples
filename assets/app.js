@@ -40,17 +40,42 @@
     files: []
   };
 
-  const DRINKS = [
-    { id: "dirty", name: "燕麦 Dirty", desc: "埃塞俄比亚日晒豆", price: 16, thumb: "t1", featured: true },
-    { id: "osmanthus", name: "桂花酿拿铁", desc: "热 / 冰", price: 28, thumb: "t1" },
-    { id: "gesha", name: "瑰夏手冲", desc: "浅烘 · 单品", price: 48, thumb: "t2" },
-    { id: "basque", name: "抹茶巴斯克", desc: "当日限量", price: 32, thumb: "t3" }
-  ];
 
   const $ = (id) => document.getElementById(id);
   const tabsEl = $("tabs");
   const stageEl = $("stage");
   const panelEl = $("panel");
+
+  let frameListener = null;
+  function stopFrameListen() {
+    if (frameListener) {
+      window.removeEventListener("message", frameListener);
+      frameListener = null;
+    }
+  }
+  function listenFrame(handler) {
+    stopFrameListen();
+    frameListener = (ev) => {
+      const data = ev.data;
+      if (!data || data.type !== "preview-review") return;
+      handler(data, ev.source);
+    };
+    window.addEventListener("message", frameListener);
+  }
+  function postFrame(payload) {
+    const iframe = document.getElementById("reviewFrame");
+    if (!iframe || !iframe.contentWindow) return;
+    iframe.contentWindow.postMessage(Object.assign({ type: "preview-review" }, payload), "*");
+  }
+  function frameHint(src, extra) {
+    const bare = src.split("?")[0];
+    return `<p class="hint">${extra || ""}嵌的是真实页面 <a href="${bare}" target="_blank" rel="noopener">${bare}</a>，带 <code>review</code> 参数才是验收模式，<a href="${bare}" target="_blank" rel="noopener">去掉参数</a>就是正常页面。</p>`;
+  }
+  function mountDeviceFrame(src, deviceClass, height) {
+    const h = height || 560;
+    return `<div class="device ${deviceClass}"><iframe id="reviewFrame" class="review-frame" title="被验收的真实页面" src="${src}" sandbox="allow-scripts allow-same-origin allow-forms" style="height:${h}px"></iframe></div>`;
+  }
+
 
   function toast(msg) {
     const el = $("toast");
@@ -134,101 +159,35 @@
     return wrap;
   }
 
-  /* ---------- phone chrome ---------- */
-  function phoneChrome(opts = {}) {
-    const { annotate = false, cls = "phone", inner = "" } = opts;
-    return `<div class="device ${cls}"><div class="screen${annotate ? " annotate" : ""}" id="screen">${inner}</div></div>`;
-  }
-
-  function homeHTML() {
-    const list = DRINKS.filter((d) => !d.featured).map((d) => `
-      <button class="row" type="button" data-open="${d.id}">
-        <div class="thumb ${d.thumb}"></div>
-        <div class="meta"><b>${d.name}</b><span>${d.desc}</span></div>
-        <div class="price">${d.price}</div>
-      </button>`).join("");
-    return `
-      <div class="status"><span>9:41</span><span>晨光咖啡</span></div>
-      <div class="nav"><h3>发现</h3><span class="loc">上海 · 静安</span></div>
-      <div class="chips">
-        <button class="chip on" type="button">精选</button>
-        <button class="chip" type="button">拿铁</button>
-        <button class="chip" type="button">手冲</button>
-        <button class="chip" type="button">甜品</button>
-      </div>
-      <div class="hero" data-open="dirty"><small>今日精选</small><h4>燕麦 Dirty</h4><small>埃塞俄比亚日晒豆 · 16 元</small></div>
-      <div class="rows">${list}</div>
-      <div class="tabbar"><span class="on">发现</span><span>菜单</span><span>门店</span><span>我的</span></div>`;
-  }
-
-  function detailHTML(drink, size) {
-    const sizes = ["小杯", "中杯", "大杯"].map((s) =>
-      `<button class="chip${s === size ? " on" : ""}" type="button" data-size="${s}">${s}</button>`
-    ).join("");
-    return `
-      <div class="status"><span>9:41</span><span>晨光咖啡</span></div>
-      <div class="detail">
-        <button class="back" type="button" data-go="home">← 发现</button>
-        <div class="hero"><small>${drink.desc}</small><h4>${drink.name}</h4></div>
-        <h3 style="margin-top:14px">${drink.name}</h3>
-        <p class="lead">${drink.desc}。可按口感选择杯型。</p>
-        <div class="sizes">${sizes}</div>
-        <div class="cta-block">
-          <button class="cta" type="button" data-add="1">加入购物袋 · ¥${drink.price}</button>
-        </div>
-      </div>
-      <div class="tabbar"><span class="on">发现</span><span>菜单</span><span>门店</span><span>我的</span></div>`;
-  }
-
-  function cartHTML(drink, size) {
-    return `
-      <div class="status"><span>9:41</span><span>晨光咖啡</span></div>
-      <div class="cart">
-        <button class="back" type="button" data-go="detail">← 返回</button>
-        <h3 style="font-family:var(--serif);font-size:24px;margin:0 0 12px">购物袋</h3>
-        <div class="cart-item"><div><b>${drink.name}</b><div class="empty">${size} × 1</div></div><div>¥${drink.price}</div></div>
-        <div class="cart-item"><b>合计</b><b>¥${drink.price}</b></div>
-        <div class="cta-block" style="margin-top:16px"><button class="cta" type="button" data-pay="1">去结算</button></div>
-      </div>
-      <div class="tabbar"><span>发现</span><span class="on">菜单</span><span>门店</span><span>我的</span></div>`;
-  }
-
   /* ---------- visual ---------- */
+  function syncVisualPins() {
+    postFrame({ action: "setPins", pins: state.visual.regions, selected: state.visual.selected });
+  }
   function renderVisualStage() {
-    stageEl.innerHTML = phoneChrome({ annotate: true, inner: homeHTML() }) +
-      `<p class="hint">在视觉稿上点击打点，选中图钉后填写意见。可标多处。</p>`;
-    const screen = $("screen");
-    const drawPins = () => {
-      screen.querySelectorAll(".pin").forEach((p) => p.remove());
-      state.visual.regions.forEach((r, i) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "pin" + (state.visual.selected === i ? " active" : "");
-        b.style.left = r.x * 100 + "%";
-        b.style.top = r.y * 100 + "%";
-        b.innerHTML = `<span>${i + 1}</span>`;
-        b.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          state.visual.selected = i;
-          renderVisualPanel();
-          drawPins();
+    stageEl.innerHTML = mountDeviceFrame("app/main.html?review=visual", "phone") +
+      frameHint("app/main.html", "在真实首页上点击打点，选中图钉后填写意见。可标多处。");
+    listenFrame((msg) => {
+      if (msg.action === "ready") syncVisualPins();
+      if (msg.action === "annotate") {
+        state.visual.regions.push({
+          image: "home",
+          screen: msg.screen || "home",
+          x: +(+msg.x).toFixed(3),
+          y: +(+msg.y).toFixed(3),
+          comment: ""
         });
-        screen.appendChild(b);
-      });
-    };
-    screen.addEventListener("click", (ev) => {
-      if (ev.target.closest(".pin")) return;
-      const rect = screen.getBoundingClientRect();
-      const x = +((ev.clientX - rect.left) / rect.width).toFixed(3);
-      const y = +((ev.clientY - rect.top) / rect.height).toFixed(3);
-      state.visual.regions.push({ image: "home.png", x, y, comment: "" });
-      state.visual.selected = state.visual.regions.length - 1;
-      renderTabs();
-      renderVisualPanel();
-      drawPins();
-      panelEl.querySelector(`input[data-region="${state.visual.selected}"]`)?.focus();
+        state.visual.selected = state.visual.regions.length - 1;
+        renderTabs();
+        renderVisualPanel();
+        syncVisualPins();
+        panelEl.querySelector(`input[data-region="${state.visual.selected}"]`)?.focus();
+      }
+      if (msg.action === "selectPin") {
+        state.visual.selected = msg.index;
+        renderVisualPanel();
+        syncVisualPins();
+      }
     });
-    drawPins();
   }
 
   function renderVisualPanel() {
@@ -253,7 +212,7 @@
         inp.addEventListener("input", () => { s.regions[+inp.dataset.region].comment = inp.value; });
         inp.addEventListener("focus", () => {
           s.selected = +inp.dataset.region;
-          document.querySelectorAll(".pin").forEach((p, i) => p.classList.toggle("active", i === s.selected));
+          syncVisualPins();
         });
       });
       list.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => {
@@ -270,39 +229,6 @@
   const DURATION = 1600;
   let clock = { t: 0, playing: false, rate: 1, raf: 0, last: 0, anims: [] };
 
-  function buildLoginAnims(root) {
-    const card = root.querySelector(".login");
-    const fields = root.querySelectorAll(".login .fieldline");
-    const btn = root.querySelector(".login-btn");
-    const title = root.querySelector(".login h2, .login .sub");
-    const anims = [];
-    const fadeUp = (el, delay, dur = 700) => {
-      const a = el.animate(
-        [
-          { opacity: 0, transform: "translateY(16px)" },
-          { opacity: 1, transform: "translateY(0)" }
-        ],
-        { duration: dur, delay, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" }
-      );
-      a.pause();
-      anims.push(a);
-    };
-    fadeUp(card, 0, 800);
-    fadeUp(root.querySelector(".login h2"), 180, 600);
-    fadeUp(root.querySelector(".login .sub"), 260, 600);
-    fields.forEach((el, i) => fadeUp(el, 420 + i * 90, 550));
-    const ba = btn.animate(
-      [
-        { opacity: 0, transform: "translateY(18px) scale(.96)" },
-        { opacity: 1, transform: "translateY(0) scale(1)" }
-      ],
-      { duration: 800, delay: 780, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" }
-    );
-    ba.pause();
-    anims.push(ba);
-    void title;
-    return anims;
-  }
 
   function applyClock() {
     clock.t = Math.max(0, Math.min(DURATION, clock.t));
@@ -323,6 +249,7 @@
     if (icon) icon.innerHTML = clock.playing
       ? `<rect x="4" y="3" width="3.5" height="10"/><rect x="9.5" y="3" width="3.5" height="10"/>`
       : `<path d="M4 3.2v9.6L13 8z"/>`;
+    postFrame({ action: "seek", t: clock.t });
   }
 
   function formatTime(ms) {
@@ -454,15 +381,10 @@
   function renderAnimationStage() {
     pause();
     clock.t = 0;
+    clock.anims = [];
     stageEl.innerHTML = `
       <div class="player-wrap">
-        <div class="login" id="loginCard">
-          <h2>欢迎回来</h2>
-          <p class="sub">请留意标题、表单和按钮依次出现的时机与弹性。</p>
-          <div class="fieldline"><input value="you@example.com" readonly></div>
-          <div class="fieldline"><input type="password" value="••••••••" readonly></div>
-          <button class="login-btn" type="button">登录</button>
-        </div>
+        <iframe id="reviewFrame" class="review-frame login-frame" title="登录页" src="app/login.html?review=1" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
         <div class="player" id="player">
           <div class="player-top">
             <button class="play" id="playBtn" type="button" aria-label="播放或暂停"><svg id="playIcon" viewBox="0 0 16 16"><path d="M4 3.2v9.6L13 8z"/></svg></button>
@@ -483,12 +405,13 @@
           <button class="ghost add-cue" id="addCue" type="button">在此刻添加评论</button>
         </div>
       </div>
-      <p class="hint">空格键播放 / 暂停，方向键微调时间。</p>`;
-    clock.anims = buildLoginAnims(stageEl);
+      ${frameHint("app/login.html", "空格键播放 / 暂停，方向键微调时间。")}`;
     bindScrubber(stageEl);
     renderMarks();
     applyClock();
-    play();
+    listenFrame((msg) => {
+      if (msg.action === "ready") play();
+    });
   }
 
   function renderAnimationPanel(full = true) {
@@ -540,35 +463,14 @@
   /* ---------- prototype ---------- */
   function renderPrototypeStage() {
     const s = state.prototype;
-    const drink = DRINKS.find((d) => d.id === s.drink) || DRINKS[0];
-    let inner = homeHTML();
-    if (s.screen === "detail") inner = detailHTML(drink, s.size);
-    if (s.screen === "cart") inner = cartHTML(drink, s.size);
-    stageEl.innerHTML = phoneChrome({ inner }) +
-      `<p class="hint">请亲手走一遍：点一杯咖啡、选规格、加入购物袋并结算。按走查项记录卡住或有问题的步骤。</p>`;
-    const screen = $("screen");
-    screen.addEventListener("click", (ev) => {
-      const open = ev.target.closest("[data-open]");
-      const go = ev.target.closest("[data-go]");
-      const size = ev.target.closest("[data-size]");
-      const add = ev.target.closest("[data-add]");
-      const pay = ev.target.closest("[data-pay]");
-      if (open) {
-        s.drink = open.dataset.open;
-        s.screen = "detail";
-        renderPrototypeStage();
-      } else if (go) {
-        s.screen = go.dataset.go;
-        renderPrototypeStage();
-      } else if (size) {
-        s.size = size.dataset.size;
-        renderPrototypeStage();
-      } else if (add) {
-        s.screen = "cart";
-        renderPrototypeStage();
-        toast("已加入购物袋");
-      } else if (pay) {
-        toast("这是走查原型，结算到此为止");
+    const hash = s.screen === "cart" ? "#/cart" : s.screen === "detail" ? `#/detail/${s.drink || "dirty"}` : "#/";
+    stageEl.innerHTML = mountDeviceFrame("app/main.html?review=1" + hash, "phone") +
+      frameHint("app/main.html", "请亲手走一遍真实页面：点一杯咖啡、选规格、加入购物袋并结算。按走查项记录卡住或有问题的步骤。");
+    listenFrame((msg) => {
+      if (msg.action === "navigate") {
+        s.screen = msg.screen || s.screen;
+        if (msg.drink) s.drink = msg.drink;
+        if (msg.size) s.size = msg.size;
       }
     });
   }
@@ -606,18 +508,34 @@
   function regionOpen(bp, id) {
     return !state.responsive.collapsed[bp]?.[id];
   }
+  function syncRegionChips(bp) {
+    document.querySelectorAll(".region-chip").forEach((b, i) => {
+      const ids = regionIds(bp);
+      if (ids[i]) b.setAttribute("aria-pressed", String(regionOpen(bp, ids[i][0])));
+    });
+  }
   function toggleRegion(bp, id) {
     const map = state.responsive.collapsed[bp] || (state.responsive.collapsed[bp] = {});
     map[id] = !map[id];
+    if (document.getElementById("reviewFrame") && state.tab === "responsive") {
+      postFrame({ action: "setFold", collapsed: map });
+      syncRegionChips(bp);
+      return;
+    }
     renderResponsiveStage();
   }
   function regionIds(bp) {
     return bp === "1280"
-      ? [["side", "侧栏"], ["hero", "主视觉"], ["grid", "商品栅格"]]
+      ? [["side", "侧栏"], ["hero", "主视觉"], ["list", "商品栅格"]]
       : [["nav", "顶栏"], ["chips", "分类"], ["hero", "精选"], ["list", "饮品列表"], ["tabbar", "底栏"]];
   }
   function setAllRegions(bp, collapsed) {
     state.responsive.collapsed[bp] = Object.fromEntries(regionIds(bp).map(([id]) => [id, collapsed]));
+    if (document.getElementById("reviewFrame") && state.tab === "responsive") {
+      postFrame({ action: "setFold", collapsed: state.responsive.collapsed[bp] });
+      syncRegionChips(bp);
+      return;
+    }
     renderResponsiveStage();
   }
   function focusBreakpoint(name) {
@@ -625,17 +543,14 @@
     s.current = name;
     s.breakpoints.forEach((b) => { s.panelFold[b.name] = b.name !== name; });
     s.panelFold[name] = false;
+    if (document.getElementById("reviewFrame") && state.tab === "responsive") {
+      applyResponsiveChrome();
+      renderResponsivePanel();
+      renderTabs();
+      return;
+    }
     renderResponsiveStage();
     renderResponsivePanel();
-  }
-  function regionWrap(bp, id, title, inner, extraClass) {
-    const open = regionOpen(bp, id);
-    return `<section class="region${open ? "" : " is-collapsed"}${extraClass ? " " + extraClass : ""}" data-region="${id}">
-      <button type="button" class="region-bar" data-toggle-region="${id}" aria-expanded="${String(open)}">
-        <i class="chev" aria-hidden="true"></i>${title}
-      </button>
-      <div class="region-body">${inner}</div>
-    </section>`;
   }
   function bindRegionToggles(bp) {
     const host = $("regionToggles");
@@ -650,13 +565,16 @@
         host.appendChild(b);
       });
     }
-    stageEl.querySelectorAll("[data-toggle-region]").forEach((btn) => {
-      btn.addEventListener("click", () => toggleRegion(bp, btn.dataset.toggleRegion));
-    });
     const openAll = stageEl.querySelector("[data-regions='open']");
     const closeAll = stageEl.querySelector("[data-regions='close']");
-    if (openAll) openAll.addEventListener("click", () => setAllRegions(bp, false));
-    if (closeAll) closeAll.addEventListener("click", () => setAllRegions(bp, true));
+    if (openAll && !openAll.dataset.bound) {
+      openAll.dataset.bound = "1";
+      openAll.addEventListener("click", () => setAllRegions(state.responsive.current, false));
+    }
+    if (closeAll && !closeAll.dataset.bound) {
+      closeAll.dataset.bound = "1";
+      closeAll.addEventListener("click", () => setAllRegions(state.responsive.current, true));
+    }
   }
   function regionToolbar() {
     return `<div class="stage-tools">
@@ -670,76 +588,49 @@
       </div>
     </div>`;
   }
-  function responsiveHomeHTML(bp) {
-    const list = DRINKS.filter((d) => !d.featured).map((d) => `
-      <div class="row">
-        <div class="thumb ${d.thumb}"></div>
-        <div class="meta"><b>${d.name}</b><span>${d.desc}</span></div>
-        <div class="price">${d.price}</div>
-      </div>`).join("");
-    return `
-      ${regionWrap(bp, "nav", "顶栏", `
-        <div class="status"><span>9:41</span><span>晨光咖啡</span></div>
-        <div class="nav"><h3>发现</h3><span class="loc">上海 · 静安</span></div>`)}
-      ${regionWrap(bp, "chips", "分类", `
-        <div class="chips">
-          <button class="chip on" type="button">精选</button>
-          <button class="chip" type="button">拿铁</button>
-          <button class="chip" type="button">手冲</button>
-          <button class="chip" type="button">甜品</button>
-        </div>`)}
-      ${regionWrap(bp, "hero", "精选", `
-        <div class="hero"><small>今日精选</small><h4>燕麦 Dirty</h4><small>埃塞俄比亚日晒豆 · 16 元</small></div>`)}
-      ${regionWrap(bp, "list", "饮品列表", `<div class="rows">${list}</div>`, "grow")}
-      ${regionWrap(bp, "tabbar", "底栏", `<div class="tabbar"><span class="on">发现</span><span>菜单</span><span>门店</span><span>我的</span></div>`, "region-dock")}
-    `;
-  }
-  function responsiveDesktopHTML() {
-    const bp = "1280";
-    const drinkCards = DRINKS.filter((d) => !d.featured).map((d) =>
-      `<div class="web-card"><b>${d.name}</b><div class="empty">${d.desc} · ¥${d.price}</div></div>`
-    ).join("");
-    return `<div class="web">
-      ${regionWrap(bp, "side", "侧栏", `<div class="web-side"><h3>晨光咖啡</h3><div class="empty">发现<br>菜单<br>门店<br>我的</div></div>`, "region-side")}
-      <div class="web-main">
-        ${regionWrap(bp, "hero", "主视觉", `<div class="web-hero"><small>今日精选</small><h4 style="margin:6px 0 0;font-family:var(--serif);font-size:32px">燕麦 Dirty</h4></div>`)}
-        ${regionWrap(bp, "grid", "商品栅格", `<div class="web-grid">${drinkCards}</div>`, "grow")}
-      </div>
-    </div>`;
-  }
 
   /* ---------- responsive ---------- */
+  function deviceClassFor(bp) {
+    return bp === "1280" ? "desktop" : bp === "768" ? "tablet" : "phone";
+  }
+  function applyResponsiveChrome() {
+    const cur = state.responsive.current;
+    const wrap = stageEl.querySelector(".device");
+    const iframe = document.getElementById("reviewFrame");
+    if (wrap) wrap.className = "device " + deviceClassFor(cur);
+    if (iframe) iframe.style.height = (cur === "1280" ? 520 : 560) + "px";
+    const sw = $("bpSwitch");
+    if (sw) {
+      sw.innerHTML = "";
+      state.responsive.breakpoints.forEach((bp) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "ghost";
+        b.textContent = bp.label;
+        b.setAttribute("aria-pressed", String(bp.name === cur));
+        if (bp.name === cur) { b.style.background = "var(--ink)"; b.style.color = "#fff"; b.style.borderColor = "var(--ink)"; }
+        b.addEventListener("click", () => focusBreakpoint(bp.name));
+        sw.appendChild(b);
+      });
+    }
+    const host = $("regionToggles");
+    if (host) {
+      host.innerHTML = "";
+      bindRegionToggles(cur);
+    }
+    postFrame({ action: "setFold", collapsed: state.responsive.collapsed[cur] || {} });
+  }
   function renderResponsiveStage() {
     const cur = state.responsive.current;
-    const hint = `<p class="hint">用上方分区开关折叠某一块，方便对照它在不同尺寸下的表现，再给出结论。</p>`;
-    if (cur === "1280") {
-      stageEl.innerHTML = `
-        ${regionToolbar()}
-        <div class="device desktop"><div class="screen regions">${responsiveDesktopHTML()}</div></div>
-        ${hint}`;
-    } else if (cur === "768") {
-      stageEl.innerHTML = `
-        ${regionToolbar()}
-        <div class="device tablet"><div class="screen regions">${responsiveHomeHTML(cur)}</div></div>
-        ${hint}`;
-    } else {
-      stageEl.innerHTML = `
-        ${regionToolbar()}
-        <div class="device phone"><div class="screen regions">${responsiveHomeHTML(cur)}</div></div>
-        ${hint}`;
-    }
-    const sw = $("bpSwitch");
-    state.responsive.breakpoints.forEach((bp) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "ghost";
-      b.textContent = bp.label;
-      b.setAttribute("aria-pressed", String(bp.name === cur));
-      if (bp.name === cur) { b.style.background = "var(--ink)"; b.style.color = "#fff"; b.style.borderColor = "var(--ink)"; }
-      b.addEventListener("click", () => focusBreakpoint(bp.name));
-      sw.appendChild(b);
+    stageEl.innerHTML = `
+      ${regionToolbar()}
+      ${mountDeviceFrame("app/main.html?review=1", deviceClassFor(cur), cur === "1280" ? 520 : 560)}
+      ${frameHint("app/main.html", "切换断点时 iframe 只改变宽度，真实页面用媒体查询响应。用上方分区开关可折叠同一块。")}`;
+    applyResponsiveChrome();
+    listenFrame((msg) => {
+      if (msg.action === "ready") postFrame({ action: "setFold", collapsed: state.responsive.collapsed[state.responsive.current] || {} });
+      if (msg.action === "toggleFold") toggleRegion(state.responsive.current, msg.id);
     });
-    bindRegionToggles(cur);
   }
 
   function foldOpen(key) {
@@ -843,6 +734,7 @@
 
   function selectTab(id) {
     if (state.tab === "animation" && id !== "animation") pause();
+    stopFrameListen();
     state.tab = id;
     location.hash = id;
     panelEl.dataset.scene = id;
