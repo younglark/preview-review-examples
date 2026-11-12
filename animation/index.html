@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>登录按钮入场动画</title>
+<style>
+:root{
+  --bg:#f3efe6;
+  --paper:#fffdf8;
+  --ink:#1c1917;
+  --muted:#7a7268;
+  --line:#e6dfd3;
+  --accent:#0f766e;
+  --accent-ink:#0b4f49;
+  --soft:#d9f3ee;
+  --ok:#15803d;
+  --warn:#b45309;
+  --bad:#b91c1c;
+  --pin:#c2410c;
+  --shadow:0 12px 40px rgba(28,25,23,.08);
+  --font:"PingFang SC","Hiragino Sans GB","Noto Sans SC",ui-sans-serif,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--font)}
+button,input,textarea,select{font:inherit}
+a{color:var(--accent-ink)}
+.app{min-height:100vh;display:grid;grid-template-rows:auto 1fr}
+.top{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:rgba(255,253,248,.86);backdrop-filter:blur(10px);position:sticky;top:0;z-index:5}
+.top h1{font-size:16px;margin:0;font-weight:650;letter-spacing:-.01em}
+.badge{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--accent-ink);border:1px solid #b7e6dd}
+.back{color:var(--muted);text-decoration:none;font-size:13px}
+.back:hover{color:var(--ink)}
+.stage{display:grid;grid-template-columns:1fr 360px;min-height:0}
+@media (max-width:900px){.stage{grid-template-columns:1fr}}
+.experience{padding:28px 32px;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center}
+.hint{color:var(--muted);font-size:13px;text-align:center;max-width:420px}
+.panel{background:var(--paper);border-left:1px solid var(--line);padding:20px 18px 28px;display:flex;flex-direction:column;gap:14px;overflow:auto}
+@media (max-width:900px){.panel{border-left:none;border-top:1px solid var(--line)}}
+.panel h2{margin:0;font-size:15px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;color:var(--muted)}
+.choices{display:flex;gap:6px;flex-wrap:wrap}
+.choice{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;cursor:pointer;color:var(--ink)}
+.choice[aria-pressed="true"][data-v="通过"]{background:#dcfce7;border-color:#86efac;color:var(--ok)}
+.choice[aria-pressed="true"][data-v="需修改"]{background:#ffedd5;border-color:#fdba74;color:var(--warn)}
+.choice[aria-pressed="true"][data-v="不通过"]{background:#fee2e2;border-color:#fca5a5;color:var(--bad)}
+textarea,input[type="text"],input[type="file"]{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;width:100%}
+textarea{min-height:72px;resize:vertical}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;display:flex;flex-direction:column;gap:6px}
+.item header{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.item button.icon{border:0;background:transparent;color:var(--muted);cursor:pointer;padding:2px 6px}
+.primary{appearance:none;border:0;background:var(--accent);color:#fff;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
+.primary:hover{filter:brightness(1.05)}
+.files{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:#fff;padding:10px 14px;border-radius:999px;font-size:13px;pointer-events:none;transition:.25s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+
+.card{width:min(380px,100%);background:var(--paper);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:36px 28px 28px}
+.card h2{margin:0 0 6px;font-size:22px}
+.card .sub{margin:0 0 24px;color:var(--muted);font-size:13px}
+.fieldline{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.fieldline input{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.login{width:100%;border:0;background:var(--ink);color:#fff;border-radius:12px;padding:12px;font-weight:650;margin-top:8px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.controls button,.controls .spd{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;cursor:pointer}
+.controls button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.timeline-wrap{width:min(420px,100%);display:flex;flex-direction:column;gap:8px}
+.timeline{position:relative;height:28px;cursor:pointer}
+.timeline .track{position:absolute;left:0;right:0;top:12px;height:4px;background:#ddd6c8;border-radius:99px}
+.timeline .fill{position:absolute;left:0;top:12px;height:4px;background:var(--accent);border-radius:99px;width:0}
+.timeline .head{position:absolute;top:6px;width:16px;height:16px;background:var(--accent);border:2px solid #fff;border-radius:50%;transform:translateX(-50%);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.mark{position:absolute;top:3px;width:10px;height:10px;background:var(--pin);border-radius:50%;transform:translateX(-50%);z-index:1}
+.times{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+</style>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="back" href="../index.html">全部示例</a>
+    <h1>登录按钮入场动画</h1>
+    <span class="badge">scene: animation</span>
+  </header>
+  <div class="stage">
+<section class="experience">
+  <div class="card">
+    <h2>欢迎回来</h2>
+    <p class="sub">这是登录按钮的入场动画，请留意出现时机、位移和弹性。</p>
+    <div class="fieldline"><input value="you@example.com" readonly></div>
+    <div class="fieldline"><input type="password" value="••••••••" readonly></div>
+    <button class="login" id="loginBtn" type="button">登录</button>
+  </div>
+  <div class="controls">
+    <button type="button" data-rate="0.4">慢放</button>
+    <button type="button" data-rate="1" aria-pressed="true">正常</button>
+    <button type="button" data-rate="1.8">快放</button>
+    <button type="button" id="replay">重播</button>
+    <button type="button" id="pause">暂停</button>
+  </div>
+  <div class="timeline-wrap">
+    <div class="timeline" id="timeline" title="点击时间轴在当前帧留言">
+      <div class="track"></div>
+      <div class="fill" id="fill"></div>
+      <div class="head" id="head"></div>
+    </div>
+    <div class="times"><span id="tcur">0.00s</span><span>点击时间轴添加评论</span><span>0.90s</span></div>
+  </div>
+  <p class="hint">可随时拖动进度或点时间轴标注某一帧。</p>
+</section>
+<aside class="panel">
+  <h2>验收反馈</h2>
+  <div class="field"><label>结论</label><div class="choices" id="verdict"></div></div>
+  <div class="field"><label>时间轴评论</label><div class="list" id="comments"><div class="files">还没有帧评论。</div></div></div>
+  <div class="field"><label>总评</label><textarea id="note" placeholder="节奏、缓动、是否打断阅读…"></textarea></div>
+  <div class="field"><label>问题帧截图 / 录屏</label><input id="files" type="file" accept="image/*,video/*,*/*" multiple></div>
+  <button class="primary" id="copy" type="button">复制反馈</button>
+</aside>
+</div>
+</div>
+<script>
+
+function toast(msg){
+  let el=document.querySelector('.toast');
+  if(!el){el=document.createElement('div');el.className='toast';document.body.appendChild(el)}
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2200);
+}
+function choiceGroup(root, values, initial){
+  root.innerHTML='';
+  let current=initial||null;
+  values.forEach(v=>{
+    const b=document.createElement('button');
+    b.type='button';b.className='choice';b.dataset.v=v;b.textContent=v;
+    b.setAttribute('aria-pressed', String(v===current));
+    b.addEventListener('click',()=>{current=v;[...root.children].forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.v===current)))});
+    root.appendChild(b);
+  });
+  return ()=>current;
+}
+function fileList(input){return input&&input.files?Array.from(input.files):[]}
+function downloadText(name,text){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+  a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);
+}
+async function submitFeedback(payload, files){
+  const bridge=window.__grokbotXPreview;
+  if(bridge&&bridge.submitFeedback){
+    await bridge.submitFeedback({json:payload,files:files||[]});
+    toast('已交给 grokbot-x，请粘贴回对话');
+    return;
+  }
+  const text=JSON.stringify(payload,null,2);
+  try{
+    await navigator.clipboard.writeText(text);
+    toast(files&&files.length?'已复制 JSON（无扩展降级，附件请自行附上）':'已复制反馈 JSON');
+  }catch{
+    downloadText('feedback.json',text);
+    toast('已下载 feedback.json');
+  }
+}
+
+
+const DURATION=900;
+const btn=document.getElementById('loginBtn');
+const fill=document.getElementById('fill');
+const head=document.getElementById('head');
+const tcur=document.getElementById('tcur');
+const commentsEl=document.getElementById('comments');
+const getVerdict=choiceGroup(document.getElementById('verdict'),['通过','需修改','不通过']);
+let comments=[];
+let anim=null;
+let rate=1;
+function makeAnim(){
+  btn.getAnimations().forEach(a=>a.cancel());
+  anim=btn.animate(
+    [
+      {opacity:0,transform:'translateY(18px) scale(.96)'},
+      {opacity:1,transform:'translateY(0) scale(1)'}
+    ],
+    {duration:DURATION,easing:'cubic-bezier(.22,1,.36,1)',fill:'forwards'}
+  );
+  anim.playbackRate=rate;
+  anim.currentTime=0;
+  anim.play();
+}
+function progress(){
+  const t=anim?Math.min(anim.currentTime||0,DURATION):0;
+  const p=t/DURATION;
+  fill.style.width=(p*100)+'%';
+  head.style.left=(p*100)+'%';
+  tcur.textContent=(t/1000).toFixed(2)+'s';
+  requestAnimationFrame(progress);
+}
+function renderMarks(){
+  document.querySelectorAll('.timeline .mark').forEach(m=>m.remove());
+  const tl=document.getElementById('timeline');
+  comments.forEach((c,i)=>{
+    const m=document.createElement('div');m.className='mark';
+    m.style.left=(c.t/ (DURATION/1000) *100)+'%';
+    m.title=c.comment||('#'+(i+1));
+    m.addEventListener('click',ev=>{ev.stopPropagation();if(anim)anim.currentTime=c.t*1000;});
+    tl.appendChild(m);
+  });
+  if(!comments.length){commentsEl.innerHTML='<div class="files">还没有帧评论。</div>';return;}
+  commentsEl.innerHTML='';
+  comments.forEach((c,i)=>{
+    const item=document.createElement('div');item.className='item';
+    item.innerHTML=`<header><span>#${i+1} · ${c.t.toFixed(2)}s</span><button class="icon" type="button" data-del="${i}">删除</button></header>
+      <input type="text" placeholder="这一帧有什么问题？" value="${c.comment.replace(/"/g,'&quot;')}" data-i="${i}">`;
+    commentsEl.appendChild(item);
+  });
+  commentsEl.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{comments[+inp.dataset.i].comment=inp.value;}));
+  commentsEl.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{comments.splice(+b.dataset.del,1);renderMarks();}));
+}
+document.getElementById('timeline').addEventListener('click',ev=>{
+  const rect=ev.currentTarget.getBoundingClientRect();
+  const p=Math.min(1,Math.max(0,(ev.clientX-rect.left)/rect.width));
+  const t=+(p*(DURATION/1000)).toFixed(3);
+  if(anim){anim.pause();anim.currentTime=t*1000;}
+  comments.push({t,frame:Math.round(t*60),comment:''});
+  comments.sort((a,b)=>a.t-b.t);
+  renderMarks();
+  const last=comments.findIndex(c=>c.t===t);
+  commentsEl.querySelector(`input[data-i="${last}"]`)?.focus();
+});
+document.querySelectorAll('[data-rate]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    rate=+b.dataset.rate;
+    document.querySelectorAll('[data-rate]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+    if(anim)anim.playbackRate=rate;
+  });
+});
+document.getElementById('replay').addEventListener('click',()=>{makeAnim();});
+document.getElementById('pause').addEventListener('click',()=>{
+  if(!anim)return;
+  if(anim.playState==='running'){anim.pause();document.getElementById('pause').textContent='继续';}
+  else{anim.play();document.getElementById('pause').textContent='暂停';}
+});
+document.getElementById('copy').addEventListener('click',()=>{
+  const verdict=getVerdict();
+  if(!verdict){toast('请先选一个结论');return;}
+  submitFeedback({
+    title:'登录按钮入场动画验收',
+    scene:'animation',
+    verdict,
+    timeline:comments.map(c=>({t:c.t,frame:c.frame,comment:c.comment})),
+    note:document.getElementById('note').value.trim()
+  }, fileList(document.getElementById('files')));
+});
+makeAnim();progress();renderMarks();
+
+</script>
+</body>
+</html>
